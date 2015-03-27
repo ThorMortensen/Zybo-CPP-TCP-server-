@@ -5,16 +5,25 @@
  * Created on 24. marts 2015, 16:00
  */
 
-#include <cstdlib>
 #include <stdint.h>
-#include <cstring>
+#include <sstream>
 #include <iostream>
-#include <sys/socket.h>
 #include <vector>
+#include <cstdlib>
+
+//For network 
+#include <cstring>
+#include <sys/socket.h>
 #include <netdb.h>
+#include <errno.h>
+
+#include "ProgArg_s.h"
+#include "Socket.h"
+
 
 #define PATH_ARG 1
 #define EXPECTED_NO_OF_ARGS 4+PATH_ARG
+#define NO_FLAGS 0
 
 using namespace std;
 
@@ -24,43 +33,24 @@ static const string ENDL = ("\n\r");
 //Print the usage for this program
 static const string USAGE = ("Usage: -ip xxx.xxx.xxx.xxx -port xxxx");
 
-/**
- * Class to hold argument to this program.
- * Holds the argument option an parameter. 
- * @param uint8_t no
- * @param const string literal
- */
-class ProgArg_s {
-public:
 
-    ProgArg_s() {
-    }; //Default constructor for arrays
-
-    ProgArg_s(uint8_t number, const string literal) : //ASK FOR POINTER INSTEAD OF COPY STRING????
-    number(number), literal(literal) {
-        /*EMTY CONSTRUCTER*/
-    };
-
-    void setArgumet(uint8_t number, const string literal) {
-        this->number = number;
-        this->literal = literal;
-    }
-    uint8_t number;
-    string literal;
-    string value;
-};
-
-
-string ipAdressServer(15, 0);
-uint16_t portNo = 0;
+// Argument expected for this program 
+ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 12);
+ProgArg_s portNrForThisServer(2, "-port", NUMBER);
+std::vector<ProgArg_s*> args_v(2);
 
 int main(int argc, char** argv) {
 
-    // Argument expected for this program 
-    std::vector<ProgArg_s> args_v(2);
-    args_v[0].setArgumet(1, "-ip");
-    args_v[1].setArgumet(2, "-port");
+    int32_t errorCode = 0;
+    int32_t sockedId = 0;
 
+    args_v[0] = &ipAddresForThisServer;
+    args_v[1] = &portNrForThisServer;
+
+    struct addrinfo hostInfo;
+    struct addrinfo* hostInfoList;
+
+    memset(&hostInfo, 0, sizeof (hostInfo));
 
     //================== Argument Checks ===================
     if (argc < EXPECTED_NO_OF_ARGS || argc > EXPECTED_NO_OF_ARGS) {
@@ -70,45 +60,57 @@ int main(int argc, char** argv) {
     }
 
     // O(n^2)   :-)
-    for (uint8_t i = 0; i <  args_v.size() ; i++) {//Get arguments  
+    for (uint8_t i = 0; i < args_v.size(); i++) {//Get arguments  
         uint8_t j;
         for (j = 1; j < argc; j++) {//0.arg is always path. Don't check that 
-            if (args_v[i].literal == argv[j]) {
-                args_v[i].value += argv[j + 1];
+            if (args_v[i]->equals(argv[j])) {
+                if (!args_v[i]->isValid(argv[j + 1])) {
+                    args_v[i]->printError();
+                    cout << USAGE << ENDL;
+                    return false;
+                }
                 break;
             }
         }
-        if (args_v[i].value.empty()) {
-            cout << "expected '" << args_v[i].literal << "' but wasn't found. Did you misspell?" << ENDL;
+        if (!args_v[i]->hasValue) {
+            args_v[i]->printError();
             cout << USAGE << ENDL;
-            return false;
         }
     }
+    //Address info : address = Address field unspecifed (both IPv4 & 6)
+    hostInfo.ai_addr = AF_UNSPEC;
+
+    // Address info : socket type. (Use SOCK_STREAM for TCP or SOCK_DGRAM for UDP.)
+    hostInfo.ai_socktype = SOCK_STREAM;
 
 
+    errorCode = getaddrinfo("www.google.com", "80", &hostInfo, &hostInfoList);
+    if (errorCode != 0) std::cout << "getaddrinfo error" << gai_strerror(errorCode);
 
+    sockedId = socket(hostInfoList->ai_family, hostInfoList->ai_socktype, hostInfoList->ai_protocol);
+    if (sockedId == -1) std::cout << "Socket error" << strerror(errno);
 
-    //    if (ARG1 != argv[1]) {
-    //        ipAdressServer.argv[1+1]
-    //        
-    //    } else {
-    //        cout << "Wrong argument expected -ip" << ENDL;
-    //        cout << USAGE << ENDL;
-    //        return false;
-    //    }
-    //
-    //    if (ARG2 == argv[2]) {
-    //       portNo = atoi(argv[2+1]);  
-    //        
-    //    } else {
-    //        cout << "Wrong argument expected -port" << ENDL;
-    //        cout << USAGE << ENDL;
-    //        return false;
-    //    }
+    errorCode = connect(sockedId, hostInfoList->ai_addr, hostInfo.ai_addrlen);
+    if (errorCode == -1) std::cout << "Connect error" << strerror(errno);
 
-    //================== Argument Checks end  ===================
+    char *msg = "GET / HTTP/1.1\nhost: www.google.com\n\n";
+    
+    
 
+    ssize_t bytesSent = send(sockedId,msg, strlen(msg), NO_FLAGS);
+    if (bytesSent != strlen(msg))std::cout << "Send error. Bytes lost";
 
+    char rxBuffer [1000];
+
+    ssize_t bytesRx = recv(sockedId, rxBuffer, 1000, NO_FLAGS);
+    if (bytesRx == 0) std::cout << "host connection shut down." << ENDL;
+    if (bytesRx == -1)std::cout << "Rx error!" << strerror(errno) << ENDL;
+
+    cout << bytesRx << " bytes recieved :" << ENDL;
+    cout << rxBuffer << ENDL;
+
+    freeaddrinfo(hostInfoList);
+    close(sockedId);
 
     return 0;
 }
