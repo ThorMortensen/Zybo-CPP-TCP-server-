@@ -4,6 +4,7 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>ProgArg_s.h</itemPath>
       <itemPath>Socket.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
@@ -13,6 +14,7 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <itemPath>ProgArg_s.cpp</itemPath>
       <itemPath>Socket.cpp</itemPath>
       <itemPath>main.cpp</itemPath>
     </logicalFolder>
@@ -38,6 +40,10 @@
       </toolsSet>
       <compileType>
       </compileType>
+      <item path="ProgArg_s.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="ProgArg_s.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="Socket.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="Socket.h" ex="false" tool="3" flavor2="0">
@@ -65,6 +71,10 @@
           <developmentMode>5</developmentMode>
         </asmTool>
       </compileType>
+      <item path="ProgArg_s.cpp" ex="false" tool="1" flavor2="0">
+      </item>
+      <item path="ProgArg_s.h" ex="false" tool="3" flavor2="0">
+      </item>
       <item path="Socket.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="Socket.h" ex="false" tool="3" flavor2="0">

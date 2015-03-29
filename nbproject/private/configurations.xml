@@ -4,7 +4,7 @@
   <confs>
     <conf name="Debug" type="1">
       <toolsSet>
-        <developmentServer>root@192.168.1.37:22</developmentServer>
+        <developmentServer>root@192.168.1.39:22</developmentServer>
         <platform>2</platform>
       </toolsSet>
       <dbx_gdbdebugger version="1">
@@ -13,6 +13,8 @@
         <gdb_interceptlist>
           <gdbinterceptoptions gdb_all="false" gdb_unhandled="true" gdb_unexpected="true"/>
         </gdb_interceptlist>
+        <gdb_signals>
+        </gdb_signals>
         <gdb_options>
           <DebugOptions>
           </DebugOptions>
@@ -25,8 +27,14 @@
       <runprofile version="9">
         <runcommandpicklist>
           <runcommandpicklistitem>"${OUTPUT_PATH}"</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -ip 19.168.1.36 -port 1010</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -ip 192.168.1.36 -port fssd</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -ip 192.168.1.36 -pot 1010</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -ipdfvfd 192.168.1.36 -port 1010</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -ip 192.168.1.36 -port 1010</runcommandpicklistitem>
+          <runcommandpicklistitem>"${OUTPUT_PATH}" -ip www.google.com -port 80</runcommandpicklistitem>
         </runcommandpicklist>
-        <runcommand>"${OUTPUT_PATH}"</runcommand>
+        <runcommand>"${OUTPUT_PATH}" -ip www.google.com -port 80</runcommand>
         <rundir></rundir>
         <buildfirst>true</buildfirst>
         <terminal-type>0</terminal-type>

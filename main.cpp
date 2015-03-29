@@ -12,7 +12,7 @@
 #include <cstdlib>
 
 //For network 
-#include <cstring>
+#include <cstring>//For recognising close in cygwin!!
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>
@@ -35,11 +35,16 @@ static const string USAGE = ("Usage: -ip xxx.xxx.xxx.xxx -port xxxx");
 
 
 // Argument expected for this program 
-ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 12);
-ProgArg_s portNrForThisServer(2, "-port", NUMBER);
-std::vector<ProgArg_s*> args_v(2);
+//ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 14);
+//ProgArg_s portNrForThisServer(2, "-port", NUMBER);
+//std::vector<ProgArg_s*> args_v(2);
 
 int main(int argc, char** argv) {
+
+    ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 14);
+    ProgArg_s portNrForThisServer(2, "-port", NUMBER);
+    std::vector<ProgArg_s*> args_v(2);
+
 
     int32_t errorCode = 0;
     int32_t sockedId = 0;
@@ -84,20 +89,18 @@ int main(int argc, char** argv) {
     hostInfo.ai_socktype = SOCK_STREAM;
 
 
-    errorCode = getaddrinfo("www.google.com", "80", &hostInfo, &hostInfoList);
+    errorCode = getaddrinfo(ipAddresForThisServer.getParamVal().c_str(), portNrForThisServer.getParamVal().c_str(), &hostInfo, &hostInfoList);
     if (errorCode != 0) std::cout << "getaddrinfo error" << gai_strerror(errorCode);
 
     sockedId = socket(hostInfoList->ai_family, hostInfoList->ai_socktype, hostInfoList->ai_protocol);
     if (sockedId == -1) std::cout << "Socket error" << strerror(errno);
 
-    errorCode = connect(sockedId, hostInfoList->ai_addr, hostInfo.ai_addrlen);
+    errorCode = connect(sockedId, hostInfoList->ai_addr, hostInfoList->ai_addrlen);
     if (errorCode == -1) std::cout << "Connect error" << strerror(errno);
 
     char *msg = "GET / HTTP/1.1\nhost: www.google.com\n\n";
-    
-    
 
-    ssize_t bytesSent = send(sockedId,msg, strlen(msg), NO_FLAGS);
+    ssize_t bytesSent = send(sockedId, msg, strlen(msg), NO_FLAGS);
     if (bytesSent != strlen(msg))std::cout << "Send error. Bytes lost";
 
     char rxBuffer [1000];
@@ -114,4 +117,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

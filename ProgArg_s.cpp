@@ -79,6 +79,7 @@ bool ProgArg_s::isValid(string parameterValue) {
             hasValue = false;
             return false;
         } else {
+            this->paramVal = parameterValue;
             hasValue = true;
             return true;
         }
