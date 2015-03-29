@@ -5,7 +5,6 @@
                    displayName="Header Files"
                    projectFiles="true">
       <itemPath>ProgArg_s.h</itemPath>
-      <itemPath>Socket.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ResourceFiles"
                    displayName="Resource Files"
@@ -15,7 +14,6 @@
                    displayName="Source Files"
                    projectFiles="true">
       <itemPath>ProgArg_s.cpp</itemPath>
-      <itemPath>Socket.cpp</itemPath>
       <itemPath>main.cpp</itemPath>
     </logicalFolder>
     <logicalFolder name="TestFiles"
@@ -44,10 +42,6 @@
       </item>
       <item path="ProgArg_s.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="Socket.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="Socket.h" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>
     </conf>
@@ -74,10 +68,6 @@
       <item path="ProgArg_s.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="ProgArg_s.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="Socket.cpp" ex="false" tool="1" flavor2="0">
-      </item>
-      <item path="Socket.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
       </item>

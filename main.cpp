@@ -9,21 +9,23 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
-#include <cstdlib>
+#include <cstdlib>//Dono
 
 //For network 
-#include <cstring>//For recognising close in cygwin!!
-#include <sys/socket.h>
-#include <netdb.h>
-#include <errno.h>
+#include <pthread.h>    //For multithreading 
+#include <arpa/inet.h>  //For 'inet_ntoa' to get readble ip 
+#include <cstring>      //For memset
+#include <sys/socket.h> //For sockets (dho)
+#include <netdb.h>      //For some socket stuff...Dono
+#include <errno.h>      //For error msg's
 
 #include "ProgArg_s.h"
-#include "Socket.h"
 
 
 #define PATH_ARG 1
-#define EXPECTED_NO_OF_ARGS 4+PATH_ARG
+#define EXPECTED_NO_OF_ARGS 4  +PATH_ARG
 #define NO_FLAGS 0
+#define EXPECTED_CLIENTS 10
 
 using namespace std;
 
@@ -34,20 +36,15 @@ static const string ENDL = ("\n\r");
 static const string USAGE = ("Usage: -ip xxx.xxx.xxx.xxx -port xxxx");
 
 
-// Argument expected for this program 
-//ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 14);
-//ProgArg_s portNrForThisServer(2, "-port", NUMBER);
-//std::vector<ProgArg_s*> args_v(2);
+//Argument expected for this program 
+ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 14);
+ProgArg_s portNrForThisServer(2, "-port", NUMBER);
+std::vector<ProgArg_s*> args_v(2);
 
 int main(int argc, char** argv) {
 
-    ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 14);
-    ProgArg_s portNrForThisServer(2, "-port", NUMBER);
-    std::vector<ProgArg_s*> args_v(2);
-
-
     int32_t errorCode = 0;
-    int32_t sockedId = 0;
+    int32_t socketId = 0;
 
     args_v[0] = &ipAddresForThisServer;
     args_v[1] = &portNrForThisServer;
@@ -88,32 +85,60 @@ int main(int argc, char** argv) {
     // Address info : socket type. (Use SOCK_STREAM for TCP or SOCK_DGRAM for UDP.)
     hostInfo.ai_socktype = SOCK_STREAM;
 
+    hostInfo.ai_flags = AI_PASSIVE; //From .h file: "Socket address is intended for `bind'." 
 
-    errorCode = getaddrinfo(ipAddresForThisServer.getParamVal().c_str(), portNrForThisServer.getParamVal().c_str(), &hostInfo, &hostInfoList);
+    //getaddrinfo is used to get info for the socket.
+    //Null: use local host. Port no is set by user args (5555)
+    errorCode = getaddrinfo(NULL, portNrForThisServer.getParamVal().c_str(), &hostInfo, &hostInfoList);
     if (errorCode != 0) std::cout << "getaddrinfo error" << gai_strerror(errorCode);
 
-    sockedId = socket(hostInfoList->ai_family, hostInfoList->ai_socktype, hostInfoList->ai_protocol);
-    if (sockedId == -1) std::cout << "Socket error" << strerror(errno);
 
-    errorCode = connect(sockedId, hostInfoList->ai_addr, hostInfoList->ai_addrlen);
-    if (errorCode == -1) std::cout << "Connect error" << strerror(errno);
+    //Make a socket and returns a socket descriptor. 
+    //All info comes from 'getaddrinfo' --> into the struct 'hostInfoList'
+    socketId = socket(hostInfoList->ai_family, hostInfoList->ai_socktype, hostInfoList->ai_protocol);
+    if (socketId == -1) std::cout << "Socket error" << strerror(errno);
 
-    char *msg = "GET / HTTP/1.1\nhost: www.google.com\n\n";
 
-    ssize_t bytesSent = send(sockedId, msg, strlen(msg), NO_FLAGS);
-    if (bytesSent != strlen(msg))std::cout << "Send error. Bytes lost";
+    //Socket options is set to reuse the add: http://pubs.opengroup.org/onlinepubs/7908799/xns/setsockopt.html
+    //This is to make sure the port is not in use by a previous call by this code. 
+    int optionValue_yes = 1;
+    errorCode = setsockopt(socketId, SOL_SOCKET, SO_REUSEADDR, &optionValue_yes, sizeof optionValue_yes);
+    //Bind socket to local port.
+    errorCode = bind(socketId, hostInfoList->ai_addr, hostInfoList->ai_addrlen);
+    if (errorCode == -1) std::cout << "Bind error" << strerror(errno);
 
-    char rxBuffer [1000];
+    errorCode = listen(socketId, EXPECTED_CLIENTS);
+    if (errorCode == -1) std::cout << "Listen error" << strerror(errno);
 
-    ssize_t bytesRx = recv(sockedId, rxBuffer, 1000, NO_FLAGS);
+
+    cout << "Waiting for incoming data.... Hooooold it ! .... Hooold it!!!" << ENDL;
+    int newIncommingSocket = 0;
+    struct sockaddr_in incommingAddr;
+    socklen_t addrSize = sizeof (incommingAddr);
+    newIncommingSocket = accept(socketId, (struct sockaddr*) &incommingAddr, &addrSize);
+    if (newIncommingSocket == -1) std::cout << "Accept error" << strerror(errno);
+    else cout << "Connection accepted. From : " << inet_ntoa(incommingAddr.sin_addr) << ENDL;
+
+
+
+    char rxBuffer [1000]; //Try using cpp strings instead 
+    ssize_t bytesRx = recv(newIncommingSocket, rxBuffer, 1000, NO_FLAGS);
+
     if (bytesRx == 0) std::cout << "host connection shut down." << ENDL;
     if (bytesRx == -1)std::cout << "Rx error!" << strerror(errno) << ENDL;
-
+    rxBuffer[bytesRx] = 0; //Set termeneating  0
     cout << bytesRx << " bytes recieved :" << ENDL;
     cout << rxBuffer << ENDL;
 
+    cout << "Respondig to msg" << ENDL;
+
+    string msg = "Recived thank you closing down";
+    ssize_t bytesSent = send(newIncommingSocket, msg.c_str(), msg.length(), NO_FLAGS);
+    if (bytesSent != msg.length())std::cout << "Send error. Bytes lost";
+
     freeaddrinfo(hostInfoList);
-    close(sockedId);
+    close(socketId);
+    close(newIncommingSocket);
 
     return 0;
 }
