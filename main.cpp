@@ -41,7 +41,82 @@ ProgArg_s ipAddresForThisServer(1, "-ip", STRING, 14);
 ProgArg_s portNrForThisServer(2, "-port", NUMBER);
 std::vector<ProgArg_s*> args_v(2);
 
+//Add a global ,mutex variable
+pthread_mutex_t mutexClientThreadCount = PTHREAD_MUTEX_INITIALIZER;
+uint16_t threadCount = 0;
+bool freeThreadSlots[EXPECTED_CLIENTS];
+
+struct ClientData_s {
+    int socketDescripter;
+    uint8_t threadId;
+    struct sockaddr_in clientAddr;
+
+};
+
+void *clientHandlerThread(void *clientSocket) {
+
+    struct ClientData_s *thisClientData;
+
+    thisClientData = (struct ClientData_s *) clientSocket;
+
+    char rxBuffer [1000];
+    ssize_t bytesRx = recv(thisClientData->socketDescripter, rxBuffer, 1000, NO_FLAGS);
+
+    if (bytesRx == 0) {
+        pthread_mutex_lock(&mutexClientThreadCount);
+        cout << "Connection from: " << inet_ntoa(thisClientData->clientAddr.sin_addr) << " is lost. Closing thread and conection" << ENDL;
+        freeThreadSlots[thisClientData->threadId] = true;
+        threadCount--;
+        pthread_mutex_unlock(&mutexClientThreadCount);
+        pthread_exit(NULL);
+    }
+
+    if (bytesRx == -1) {
+        pthread_mutex_lock(&mutexClientThreadCount);
+        std::cout << "Rx error!" << strerror(errno) << ENDL;
+        freeThreadSlots[thisClientData->threadId] = true;
+        threadCount--;
+        pthread_mutex_unlock(&mutexClientThreadCount);
+        pthread_exit(NULL);
+    }
+
+
+    rxBuffer[bytesRx] = 0; //Set termeneating  0
+
+    pthread_mutex_lock(&mutexClientThreadCount);
+    cout << bytesRx << " bytes recieved :" << ENDL;
+    cout << rxBuffer << ENDL;
+    cout << "Respondig to msg" << ENDL;
+    pthread_mutex_unlock(&mutexClientThreadCount);
+
+    string msg = "Recived thank you closing down this thread: ";
+    stringstream convert;
+    int temp = thisClientData->threadId;
+    convert << temp;
+
+    msg += convert.str();
+    ssize_t bytesSent = send(thisClientData->socketDescripter, msg.c_str(), msg.length(), NO_FLAGS);
+    if (bytesSent != msg.length())std::cout << "Send error. Bytes lost";
+
+    close(thisClientData->socketDescripter);
+
+    pthread_mutex_lock(&mutexClientThreadCount);
+    cout << "Closing from: " << inet_ntoa(thisClientData->clientAddr.sin_addr) << ENDL;
+    freeThreadSlots[thisClientData->threadId] = true;
+    threadCount--;
+    pthread_mutex_unlock(&mutexClientThreadCount);
+    pthread_exit(NULL);
+    pthread_mutex_unlock(&mutexClientThreadCount);
+
+    pthread_exit(NULL);
+
+}
+
 int main(int argc, char** argv) {
+
+    ClientData_s clientData[EXPECTED_CLIENTS] = {0};
+    pthread_t threads[EXPECTED_CLIENTS];
+
 
     int32_t errorCode = 0;
     int32_t socketId = 0;
@@ -53,6 +128,8 @@ int main(int argc, char** argv) {
     struct addrinfo* hostInfoList;
 
     memset(&hostInfo, 0, sizeof (hostInfo));
+    memset(&freeThreadSlots, true, sizeof (freeThreadSlots));
+
 
     //================== Argument Checks ===================
     if (argc < EXPECTED_NO_OF_ARGS || argc > EXPECTED_NO_OF_ARGS) {
@@ -110,35 +187,41 @@ int main(int argc, char** argv) {
     errorCode = listen(socketId, EXPECTED_CLIENTS);
     if (errorCode == -1) std::cout << "Listen error" << strerror(errno);
 
+    freeaddrinfo(hostInfoList); //Not needed anymore...:-( 
 
-    cout << "Waiting for incoming data.... Hooooold it ! .... Hooold it!!!" << ENDL;
-    int newIncommingSocket = 0;
-    struct sockaddr_in incommingAddr;
-    socklen_t addrSize = sizeof (incommingAddr);
-    newIncommingSocket = accept(socketId, (struct sockaddr*) &incommingAddr, &addrSize);
-    if (newIncommingSocket == -1) std::cout << "Accept error" << strerror(errno);
-    else cout << "Connection accepted. From : " << inet_ntoa(incommingAddr.sin_addr) << ENDL;
+    while (true) {
+        if (threadCount <= EXPECTED_CLIENTS) {
+
+            cout << "Waiting for incoming data.... Hooooold it ! .... Hooold it!!!" << ENDL;
+            int newIncommingSocket = 0;
+            struct sockaddr_in incommingAddr;
+            socklen_t addrSize = sizeof (incommingAddr);
+            newIncommingSocket = accept(socketId, (struct sockaddr*) &incommingAddr, &addrSize);
+            if (newIncommingSocket == -1) std::cout << "Accept error" << strerror(errno);
+            else {
+                cout << "Connection accepted. From : " << inet_ntoa(incommingAddr.sin_addr) << ENDL;
+                for (uint8_t freeSlot = 0; freeSlot <= EXPECTED_CLIENTS; freeSlot++) {
+                    if (freeThreadSlots[freeSlot]) {
+
+                        pthread_mutex_lock(&mutexClientThreadCount);
+                        freeThreadSlots[freeSlot] = false;
+                        threadCount++;
+                        pthread_mutex_unlock(&mutexClientThreadCount);
+
+                        clientData[freeSlot].threadId = freeSlot;
+                        clientData[freeSlot].clientAddr = incommingAddr;
+                        clientData[freeSlot].socketDescripter = newIncommingSocket;
+
+                        pthread_create(&threads[freeSlot], NULL, clientHandlerThread, static_cast<void*> (&clientData[freeSlot]));
+                        break;
+                    }
+                }
+            }
+        }
+
+    }
 
 
-
-    char rxBuffer [1000]; //Try using cpp strings instead 
-    ssize_t bytesRx = recv(newIncommingSocket, rxBuffer, 1000, NO_FLAGS);
-
-    if (bytesRx == 0) std::cout << "host connection shut down." << ENDL;
-    if (bytesRx == -1)std::cout << "Rx error!" << strerror(errno) << ENDL;
-    rxBuffer[bytesRx] = 0; //Set termeneating  0
-    cout << bytesRx << " bytes recieved :" << ENDL;
-    cout << rxBuffer << ENDL;
-
-    cout << "Respondig to msg" << ENDL;
-
-    string msg = "Recived thank you closing down";
-    ssize_t bytesSent = send(newIncommingSocket, msg.c_str(), msg.length(), NO_FLAGS);
-    if (bytesSent != msg.length())std::cout << "Send error. Bytes lost";
-
-    freeaddrinfo(hostInfoList);
-    close(socketId);
-    close(newIncommingSocket);
 
     return 0;
 }

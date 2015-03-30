@@ -37,6 +37,13 @@
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
       <compileType>
+        <cTool>
+          <standard>10</standard>
+          <commandLine>-pthread</commandLine>
+        </cTool>
+        <ccTool>
+          <commandLine>-pthread</commandLine>
+        </ccTool>
       </compileType>
       <item path="ProgArg_s.cpp" ex="false" tool="1" flavor2="0">
       </item>
